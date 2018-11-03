@@ -2,6 +2,7 @@
 
 #import related library
 import requests
+import pymysql
 from bs4 import BeautifulSoup
 
 #get the content of url
@@ -52,12 +53,38 @@ def get_info(urls):
         info_list.append(info_dic)
     print(info_list)
 
-#main faction
+# main function 
 def main():
     url = 'https://movie.douban.com/top250'
     result =  get_content(url)
     urls = get_link(result)
-    get_info(urls)
+    info_list = get_info(urls)
+    #add data to the database
+    db = pymysql.connect('localhost','root','643521',3306,'example','utf8')
+    cursor = db.cursor()
+    cursor.execute('drop table if exists douban')
+    sql = """create table douban (
+        name varchar(50),
+        director varchar(50),
+        origin varchar(50),
+        run_time varchar(50),
+        meta_score float(10),
+        movie_type varchar(60),
+        vote_count int(10)
+    ) default charset = utf8;"""
+    cursor.execute(sql)
+    for i in info_list:
+        sql = """INSERT INTO douban(name,director,run_time,meta_time,meta_score,movie_type,vote_count) VALUES(i['name'],i['director'],i['run_time'],i['meta_score'],i['movie_type'].split(','),i['vote_count'])"""
+        try:
+            cursor.execute(sql)
+            db.commit()
+            print('已将数据成功导入数据库')
+        except:
+            db.rollback()
+        finally:
+            cursor.close()
+            db.close()
+    print('结束')
 
 if __name__ == '__main__':
     main()
