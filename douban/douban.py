@@ -32,6 +32,7 @@ def get_link(content):
 #extract the field which we need 
 def get_info(urls):
     info_list = []
+    print('开始解析页面')
     for url in urls:
         info_dic = {}
         req = requests.get(url)
@@ -51,40 +52,59 @@ def get_info(urls):
         else:
             pass
         info_list.append(info_dic)
-    print(info_list)
+    return info_list
+
+# add data to the database
+def mysql_con(host,user,passwd,dbase,port,charset,info):
+    print('开始连接数据库')
+    db = pymysql.connect(
+        host = host, 
+        user = user,
+        passwd = passwd,
+        database = dbase,
+        port = port,
+        charset = charset)
+    with db.cursor() as cursor:
+        cursor.execute('drop table if exists Douban')
+        sql = """create table Douban (
+            name varchar(50),
+            director varchar(50),
+            origin varchar(50),
+            run_time varchar(50),
+            meta_score varchar(10),
+            movie_type varchar(100),
+            vote_count varchar(20)
+        )default charset=utf8;"""
+        cursor.execute(sql)
+        for i in range(len(info)):
+            sets = ''
+            for value in range(len(info[i]['movie_type'])):
+                sets += info[i]['movie_type'][value]
+                if value !=  max(range(len(info[i]['movie_type']))):   
+                    sets += '/'
+                else:
+                    pass
+            print(sets)
+            sqls = "INSERT INTO Douban (name,director,run_time,meta_score,movie_type,vote_count) VALUES (info[i]['name'],info[i]['director'],info[i]['run_time'],info[i]['meta_score'],sets,info[i]['vote_count']);"
+            try:
+                cursor.execute(sqls)
+                db.commit()
+                print('已将数据成功导入数据库')
+            except Exception as e:
+                print('错误详情内容:',e)       
+            finally:
+                cursor.close()
+                db.close()
+    print('连接成功')
 
 # main function 
 def main():
     url = 'https://movie.douban.com/top250'
     result =  get_content(url)
+    print(result)
     urls = get_link(result)
-    info_list = get_info(urls)
-    #add data to the database
-    db = pymysql.connect('localhost','root','643521',3306,'example','utf8')
-    cursor = db.cursor()
-    cursor.execute('drop table if exists douban')
-    sql = """create table douban (
-        name varchar(50),
-        director varchar(50),
-        origin varchar(50),
-        run_time varchar(50),
-        meta_score float(10),
-        movie_type varchar(60),
-        vote_count int(10)
-    ) default charset = utf8;"""
-    cursor.execute(sql)
-    for i in info_list:
-        sql = """INSERT INTO douban(name,director,run_time,meta_time,meta_score,movie_type,vote_count) VALUES(i['name'],i['director'],i['run_time'],i['meta_score'],i['movie_type'].split(','),i['vote_count'])"""
-        try:
-            cursor.execute(sql)
-            db.commit()
-            print('已将数据成功导入数据库')
-        except:
-            db.rollback()
-        finally:
-            cursor.close()
-            db.close()
-    print('结束')
-
+    info = get_info(urls)
+    mysql_con('localhost','root','643521','movies',3306,'utf8',info)
+    
 if __name__ == '__main__':
     main()
